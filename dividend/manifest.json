@@ -1,0 +1,10 @@
+{
+  "pluginVersion": 1,
+  "name": "Dividend",
+  "myVersion": "v.1.0",
+  "shortDescription": "This plugin is for showing recieved dividends",
+  "infoUrl": "https://github.com/libertyswede/dividend-plugin",
+  "startPage": "p_dividend",
+  "nrsVersion": "1.5.0",
+  "deactivated": false
+}
