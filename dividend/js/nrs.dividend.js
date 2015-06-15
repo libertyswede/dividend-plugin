@@ -2,32 +2,7 @@
  * @depends {nrs.js}
  */
  
- // TODOs, Prio #1:
- // * Show summary for my recieved dividends
- // * Show date, if possible for each transaction?
- // * Test with accounts that has lots of trades+transfers.
- // * Test with accounts that has lots of dividend transactions.
- // * Check function/variable naming convention with documentation and other plug-ins
- // * Move styles to css (where possible)
- 
- // TODOs, Prio #2:
- // * Integrate with notification system and show when new dividend transaction has been recieved
- // * Ability to show all assets
- // * Ability to show specific assets
- // * Save transactions in local storage.
- // * Ability to delta load transactions (dependant on save transactions)
- // * Pagination
- // * Use I18N strings
- // * Set up and show modal dialogue
- // * Custom sort and filtering in data table
- // * Refresh button / auto refresh (delta) after x seconds (10? 20?)
- 
- // DONE:
- // * Phasing safe (dividend, trade & transfers)
- // * UI, show "no dividend transactions found" when user has no dividend transactions
- // * UI, show loading info when lots of transactions or slow server
- 
-var NRS = (function(NRS, $, undefined) {	
+var NRS = (function(NRS, $, undefined) {
 	var p_dividend_accountAssets = [];
     var p_dividend_dividendTransactions = [];
 	var p_dividend_assetOwnership = {};
@@ -44,10 +19,6 @@ var NRS = (function(NRS, $, undefined) {
 			.then(p_dividend_sortDividendTransactions)
 			.done(p_dividend_resolve);
     }
-	
-	p_dividend_resolve = function() {
-		p_dividend_dataLoading.resolve();
-	}
 
     NRS.pages.p_dividend = function() {
 		if (p_dividend_dataLoading.state() === "resolved") {
@@ -56,10 +27,15 @@ var NRS = (function(NRS, $, undefined) {
 			} else {
 				p_dividend_showNoDividendTransactions();
 			}
+			p_dividend_showSummary();
 		} else if (p_dividend_dataLoading.state() === "pending") {
 			p_dividend_dataLoading.done(NRS.pages.p_dividend);
 		}
     }
+	
+	p_dividend_resolve = function() {
+		p_dividend_dataLoading.resolve();
+	}
 	
 	p_dividend_getTransaction = function(transactionId) {
 		return $.map(p_dividend_dividendTransactions, function(dividendTransaction) {
@@ -81,7 +57,7 @@ var NRS = (function(NRS, $, undefined) {
         var rows = "";
         $.each(p_dividend_dividendTransactions, function(index, transaction) {
             rows += "<tr>";
-            rows += "<td>" + transaction.attachment.height + "</td>";
+			rows += "<td>" + transaction.attachment.height + "</td>";
             rows += "<td><a class=\"show_transaction_modal_action\" href=\"#\" data-transaction=\"" 
 			     + transaction.transaction + "\">" + transaction.transaction + "</a></td>"
             rows += "<td><a href=\"#\" data-goto-asset=\"" + transaction.attachment.asset + "\">" 
@@ -93,6 +69,15 @@ var NRS = (function(NRS, $, undefined) {
         });
         NRS.dataLoaded(rows);
     }
+	
+	p_dividend_showSummary = function() {
+		$("#dividend_count").text(p_dividend_dividendTransactions.length);
+		var sum = 0.0;
+		$.each(p_dividend_dividendTransactions, function(index, transaction) {
+			sum += parseFloat(p_dividend_getDividendForAttachment(transaction.attachment));
+		});
+		$("#dividend_recieved").text(p_dividend_fixFloat(sum) + " NXT");
+	}
 	
 	p_dividend_showNoDividendTransactions = function() {
 		rows = "<tr>";
@@ -109,7 +94,7 @@ var NRS = (function(NRS, $, undefined) {
 		var quantityQNT = p_dividend_getAssetOwnershipQNT(attachment.asset, attachment.height);
 		
 		var NQTearned = attachment.amountNQTPerQNT * quantityQNT;
-		var NXTearned = (NQTearned / 100000000).toFixed(8).replace(/\.?0+$/,"");
+		var NXTearned = p_dividend_fixFloat(NQTearned / 100000000);
 		
 		return NXTearned;
 	}
@@ -269,10 +254,10 @@ var NRS = (function(NRS, $, undefined) {
         return dfd.promise();
 	}
 	
-	p_dividend_getAssetOwnershipQNT = function(assetId, height) {
+	p_dividend_getAssetOwnershipQNT = function(assetId, dividendHeight) {
 		var quantityQNT = 0;
 		$.each(p_dividend_assetOwnership[assetId], function(i, delta) {
-			if (delta.height < height) {
+			if (delta.height <= dividendHeight) {
 				quantityQNT += delta.quantityQNT;
 			} else {
 				return false;
@@ -285,7 +270,11 @@ var NRS = (function(NRS, $, undefined) {
 		var quantityQNT = p_dividend_getAssetOwnershipQNT(assetId, height);
 		var asset = p_dividend_getAsset(assetId);
 		decimalMultiplier = Math.pow(10, asset.decimals);
-		return (quantityQNT / decimalMultiplier).toFixed(8).replace(/\.?0+$/, "");
+		return p_dividend_fixFloat(quantityQNT / decimalMultiplier);
+	}
+	
+	p_dividend_fixFloat = function(value) {
+		return parseFloat(value).toFixed(8).replace(/\.?0+$/, "");
 	}
 	
 	p_dividend_sortDividendTransactions = function() {
